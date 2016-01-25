@@ -17,16 +17,17 @@ module.exports = function (opts) {
     opts.data = file.contents.toString();
     opts.css = css.parse(opts.data);
     opts.occurences = {};
+
     try {
       opts.css.stylesheet.rules.forEach(function(rule) {
         rule.declarations.forEach(function(declaration) {
-          opts.colors.forEach(function(color) {
-            var declaColor = (declaration.value.length < 5 && declaration.value.indexOf('#') > -1) ? declaration.value + declaration.value.substring(1) : declaration.value;
-            if (declaColor.toLowerCase() === color.toLowerCase()) {
-              opts.occurences[declaColor] = opts.occurences[declaColor] || [];
-              opts.occurences[declaColor][declaration.property] = opts.occurences[declaColor][declaration.property] || [];
+          console.log(declaration);
+          opts.matches.forEach(function(match) {
+            if (declaration.value.indexOf(match) > -1) {
+              opts.occurences[declaration.value] = opts.occurences[declaration.value] || [];
+              opts.occurences[declaration.value][declaration.property] = opts.occurences[declaration.value][declaration.property] || []
               rule.selectors.forEach(function(selector) {
-                opts.occurences[declaColor][declaration.property].push(selector);
+                opts.occurences[declaration.value][declaration.property].push(selector);
               });
             };
           });
@@ -34,7 +35,7 @@ module.exports = function (opts) {
       });
     } catch(err) {
       console.log(err);
-    };
+    }
     var newCss = {
       stylesheet: {
         rules: []
@@ -59,11 +60,14 @@ module.exports = function (opts) {
       }
     }
     var string = css.stringify(newCss, {
-      compress: opts.compress
+      indent: opts.indent,
+      compress: opts.compress,
+      sourcemap: opts.sourcemap
     });
     string = string.replace(/,\n/g, ', ');
     fs.writeFile(opts.path + 'customize.css', string, function(err) {
       if (err) return console.log(err);
     });
+    cb(null, file);
   });
 }
