@@ -5,6 +5,7 @@ var gutil = require('gulp-util');
 var assign = require('object-assign')
 var css = require('css');
 var fs = require('fs');
+var path = require('path');
 
 module.exports = function (opts) {
   opts = assign({
@@ -17,21 +18,35 @@ module.exports = function (opts) {
     opts.data = file.contents.toString();
     opts.css = css.parse(opts.data);
     opts.occurences = {};
+    opts.matches = opts.matches || [];
+
+    if (opts.replaces) {
+      Object.keys(opts.replaces).forEach(function(key) {
+        opts.matches.push(key);
+      });
+    }
 
     try {
       opts.css.stylesheet.rules.forEach(function(rule) {
-        rule.declarations.forEach(function(declaration) {
-          console.log(declaration);
-          opts.matches.forEach(function(match) {
-            if (declaration.value.indexOf(match) > -1) {
-              opts.occurences[declaration.value] = opts.occurences[declaration.value] || [];
-              opts.occurences[declaration.value][declaration.property] = opts.occurences[declaration.value][declaration.property] || []
-              rule.selectors.forEach(function(selector) {
-                opts.occurences[declaration.value][declaration.property].push(selector);
-              });
-            };
+        if(rule.declarations) {
+          rule.declarations.forEach(function(declaration) {
+            opts.matches.forEach(function(match) {
+              if (declaration.value) {
+                if (declaration.value.indexOf(match) > -1 && declaration.value.indexOf('gradient') < 0) {
+                  var val = declaration.value.replace(/ /g, "_");
+                  //console.log(declaration.value);
+                  //console.log(declaration);
+                  opts.occurences[val] = opts.occurences[val] || {};
+                  opts.occurences[val][declaration.property] = opts.occurences[val][declaration.property] || [];
+                  //console.log(opts.occurences[val][declaration.property]);
+                  rule.selectors.forEach(function(selector) {
+                    opts.occurences[val][declaration.property].push(selector);
+                  });
+                };
+              };
+            });
           });
-        });
+        };
       });
     } catch(err) {
       console.log(err);
@@ -45,6 +60,7 @@ module.exports = function (opts) {
       var val = opts.occurences[key];
       for (var key2 in val) {
         var val2 = val[key2];
+        var declarationValue = (opts.replaces) ? opts.replaces[key] : key.replace(/_/g, " ");
         var rule = {
           type: "rule",
           selectors: val2,
@@ -52,7 +68,7 @@ module.exports = function (opts) {
             {
               type: "declaration",
               property: key2,
-              value: key
+              value: declarationValue
             }
           ]
         }
@@ -65,7 +81,7 @@ module.exports = function (opts) {
       sourcemap: opts.sourcemap
     });
     string = string.replace(/,\n/g, ', ');
-    fs.writeFile(opts.path + 'customize.css', string, function(err) {
+    fs.writeFile(opts.path + path.basename(file.path, '.css') + '_customize.css', string, function(err) {
       if (err) return console.log(err);
     });
     cb(null, file);
