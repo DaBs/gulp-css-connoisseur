@@ -9,7 +9,7 @@ var path = require('path');
 
 module.exports = function (opts) {
   opts = assign({
-    colors: [],
+    matches: [],
     compress: false,
     path: './'
   }, opts);
@@ -18,7 +18,7 @@ module.exports = function (opts) {
     opts.data = file.contents.toString();
     opts.css = css.parse(opts.data);
     opts.occurences = {};
-    opts.matches = opts.matches || [];
+    opts.postfix = opts.postfix || 'customize';
 
     if (opts.replaces) {
       Object.keys(opts.replaces).forEach(function(key) {
@@ -60,7 +60,15 @@ module.exports = function (opts) {
       var val = opts.occurences[key];
       for (var key2 in val) {
         var val2 = val[key2];
-        var declarationValue = (opts.replaces) ? opts.replaces[key] : key.replace(/_/g, " ");
+        var declarationValue = key.replace(/_/g, " ");
+        if (opts.replaces) {
+          Object.keys(opts.replaces).forEach(function(replaceKey) {
+            if (declarationValue.indexOf(replaceKey) > -1) {
+              console.log(declarationValue);
+              declarationValue = declarationValue.replace(replaceKey, opts.replaces[replaceKey]);
+            }
+          });
+        }
         var rule = {
           type: "rule",
           selectors: val2,
@@ -81,8 +89,10 @@ module.exports = function (opts) {
       sourcemap: opts.sourcemap
     });
     string = string.replace(/,\n/g, ', ');
-    fs.writeFile(opts.path + path.basename(file.path, '.css') + '_customize.css', string, function(err) {
-      if (err) return console.log(err);
+    opts.path.forEach(function(outputPath) {
+      fs.writeFile(outputPath + path.basename(file.path, '.css') + '_' + opts.postfix + '.css', string, function(err) {
+        if (err) return console.log(err);
+      });
     });
     cb(null, file);
   });
